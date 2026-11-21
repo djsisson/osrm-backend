@@ -45,6 +45,25 @@ class BaseAPI
     }
 
   protected:
+    std::pair<uint64_t, uint64_t> MakeNodes(const PhantomNode &phantom_node) const
+    {
+        BOOST_ASSERT(phantom_node.forward_segment_id.enabled ||
+                     phantom_node.reverse_segment_id.enabled);
+        const auto segment_id = phantom_node.forward_segment_id.enabled
+                                    ? phantom_node.forward_segment_id.id
+                                    : phantom_node.reverse_segment_id.id;
+        const auto geometry_id = facade.GetGeometryIndex(segment_id).id;
+        const auto geometry = facade.GetUncompressedForwardGeometry(geometry_id);
+        const std::size_t position = phantom_node.fwd_segment_position;
+        BOOST_ASSERT(position + 1 < geometry.size());
+        const auto start =
+            static_cast<std::uint64_t>(facade.GetOSMNodeIDOfNode(geometry[position]));
+        const auto end =
+            static_cast<std::uint64_t>(facade.GetOSMNodeIDOfNode(geometry[position + 1]));
+        return phantom_node.reverse_segment_id.enabled ? std::make_pair(end, start)
+                                                       : std::make_pair(start, end);
+    }
+
     template <typename ToName, typename NoEmpty>
     static std::vector<std::string>
     uniqueNames(const PhantomNodeCandidates &candidates, ToName to_name, NoEmpty no_empty)

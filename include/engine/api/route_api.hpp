@@ -111,9 +111,26 @@ class RouteAPI : public BaseAPI
 
         if (!parameters.skip_waypoints)
         {
-            response.values.emplace(
-                "waypoints",
-                BaseAPI::MakeWaypoints(waypointsAsRouted(raw_routes, waypoint_candidates)));
+            auto waypoints = BaseAPI::MakeWaypoints(waypointsAsRouted(raw_routes, waypoint_candidates));
+            const auto route = std::find_if(raw_routes.routes.begin(),
+                                            raw_routes.routes.end(),
+                                            [](const auto &r) { return r.is_valid(); });
+            if (route != raw_routes.routes.end() && !route->leg_endpoints.empty() &&
+                route->leg_endpoints.size() + 1 == waypoints.values.size())
+            {
+                for (std::size_t i = 0; i < waypoints.values.size(); ++i)
+                {
+                    const auto &phantom = i == 0 ? route->leg_endpoints.front().source_phantom
+                                                 : route->leg_endpoints[i - 1].target_phantom;
+                    const auto [first, second] = MakeNodes(phantom);
+                    util::json::Array nodes;
+                    nodes.values.emplace_back(first);
+                    nodes.values.emplace_back(second);
+                    std::get<util::json::Object>(waypoints.values[i]).values.emplace(
+                        "nodes", std::move(nodes));
+                }
+            }
+            response.values.emplace("waypoints", std::move(waypoints));
         }
         response.values.emplace("routes", std::move(jsRoutes));
         response.values.emplace("code", "Ok");

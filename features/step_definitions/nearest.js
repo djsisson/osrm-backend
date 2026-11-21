@@ -128,6 +128,20 @@ When(/^I request nearest with flatbuffers I should get$/, async function (table)
               } else {
                 row[key] = util.format('%s [%d,%d]', row[key], outNode.lat, outNode.lon);
               }
+            } else if (key === 'nodes') {
+              const names = row.nodes.split(',').map(n => n.trim());
+              const expected = names.map(name => this.findNodeByName(name));
+              if (names.length !== 2 || expected.some(node => !node)) {
+                throw new Error(util.format('*** invalid nodes column "%s"', row.nodes));
+              }
+              const actual = fb.waypoints(0).nodes();
+              if (actual && actual.first() === BigInt(expected[0].id) &&
+                  actual.second() === BigInt(expected[1].id)) {
+                got.nodes = row.nodes;
+              } else {
+                row.nodes = util.format('%s [got: %s,%s]', row.nodes,
+                  actual ? actual.first() : '?', actual ? actual.second() : '?');
+              }
             }
           });
 
